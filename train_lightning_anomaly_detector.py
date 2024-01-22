@@ -85,7 +85,10 @@ model = AnomalyDetector(node_raw_features=dm.get_node_features(),
             learning_rate=learning_rate)
 
 # Initialize Trainer
-trainer = pl.Trainer(accelerator="auto", devices="auto", strategy="auto", min_epochs=min_epochs, max_epochs=max_epochs, logger=logger, callbacks=[checkpoint_callback])
+if use_checkpoint:
+    trainer = pl.Trainer(accelerator="auto", devices="auto", strategy="auto", min_epochs=min_epochs, max_epochs=max_epochs, logger=logger, callbacks=[checkpoint_callback])
+else:
+    trainer = pl.Trainer(accelerator="auto", devices="auto", strategy="auto", min_epochs=min_epochs, max_epochs=max_epochs, logger=logger)
 
 # Train model
 trainer.fit(model=model, datamodule=dm)
