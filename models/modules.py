@@ -4,6 +4,45 @@ import torch.nn as nn
 import torch.nn.functional as F
 from utils.utils import NeighborSampler
 
+'''NOTE: This file is external code from: https://github.com/yule-BUAA/DyGLib_TGB/tree/master/.
+Changes I made are marked with a comment starting with "CHANGED"
+MIT LICENSE:
+
+Copyright (c) 2023 Yu Le
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Paper:
+@article{huang2023temporal,
+  title={Temporal Graph Benchmark for Machine Learning on Temporal Graphs},
+  author={Huang, Shenyang and Poursafaei, Farimah and Danovitch, Jacob and Fey, Matthias and Hu, Weihua and Rossi, Emanuele and Leskovec, Jure and Bronstein, Michael and Rabusseau, Guillaume and Rabbany, Reihaneh},
+  journal={arXiv preprint arXiv:2307.01026},
+  year={2023}
+}
+@article{yu2023empirical,
+  title={An Empirical Evaluation of Temporal Graph Benchmark},
+  author={Yu, Le},
+  journal={arXiv preprint arXiv:2307.12510},
+  year={2023}
+}
+'''
+
 
 class TimeEncoder(nn.Module):
 
@@ -227,35 +266,6 @@ class TGAT(nn.Module):
             self.neighbor_sampler.reset_random_state()
 
 
-class MLPClassifier(nn.Module):
-    def __init__(self, input_dim: int, output_dim: int, dropout: float = 0.1):
-        """
-        Multi-Layer Perceptron Classifier.
-        :param input_dim: int, dimension of input
-        :param output_dim: int, dimension of the output
-        :param dropout: float, dropout rate
-        """
-        super().__init__()
-        self.fc1 = nn.Linear(input_dim, 80)
-        self.fc2 = nn.Linear(80, 10)
-        self.fc3 = nn.Linear(10, output_dim)
-        self.act = nn.ReLU()
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x: torch.Tensor):
-        """
-        multi-layer perceptron classifier forward process
-        :param x: Tensor, shape (*, input_dim)
-        :return:
-        """
-        # Tensor, shape (*, 80)
-        x = self.dropout(self.act(self.fc1(x)))
-        # Tensor, shape (*, 10)
-        x = self.dropout(self.act(self.fc2(x)))
-        # Tensor, shape (*, output_dim)
-        return self.fc3(x)
-
-
 class MultiHeadAttention(nn.Module):
 
     def __init__(self, node_feat_dim: int, edge_feat_dim: int, time_feat_dim: int, num_heads: int = 2, dropout: float = 0.1):
@@ -376,62 +386,3 @@ class MultiHeadAttention(nn.Module):
 
         return output, attention_scores
 
-
-class TransformerEncoder(nn.Module):
-
-    def __init__(self, attention_dim: int, num_heads: int, dropout: float = 0.1):
-        """
-        Transformer encoder.
-        :param attention_dim: int, dimension of the attention vector
-        :param num_heads: int, number of attention heads
-        :param dropout: float, dropout rate
-        """
-        super(TransformerEncoder, self).__init__()
-        # use the MultiheadAttention implemented by PyTorch
-        self.multi_head_attention = nn.MultiheadAttention(embed_dim=attention_dim, num_heads=num_heads, dropout=dropout)
-
-        self.dropout = nn.Dropout(dropout)
-
-        self.linear_layers = nn.ModuleList([
-            nn.Linear(in_features=attention_dim, out_features=4 * attention_dim),
-            nn.Linear(in_features=4 * attention_dim, out_features=attention_dim)
-        ])
-        self.norm_layers = nn.ModuleList([
-            nn.LayerNorm(attention_dim),
-            nn.LayerNorm(attention_dim)
-        ])
-
-    def forward(self, inputs_query: torch.Tensor, inputs_key: torch.Tensor = None, inputs_value: torch.Tensor = None,
-                neighbor_masks: np.ndarray = None):
-        """
-        encode the inputs by Transformer encoder
-        :param inputs_query: Tensor, shape (batch_size, target_seq_length, self.attention_dim)
-        :param inputs_key: Tensor, shape (batch_size, source_seq_length, self.attention_dim)
-        :param inputs_value: Tensor, shape (batch_size, source_seq_length, self.attention_dim)
-        :param neighbor_masks: ndarray, shape (batch_size, source_seq_length), used to create mask of neighbors for nodes in the batch
-        :return:
-        """
-        if inputs_key is None or inputs_value is None:
-            assert inputs_key is None and inputs_value is None
-            inputs_key = inputs_value = inputs_query
-        # note that the MultiheadAttention module accept input data with shape (seq_length, batch_size, input_dim), so we need to transpose the input
-        # transposed_inputs_query, Tensor, shape (target_seq_length, batch_size, self.attention_dim)
-        # transposed_inputs_key, Tensor, shape (source_seq_length, batch_size, self.attention_dim)
-        # transposed_inputs_value, Tensor, shape (source_seq_length, batch_size, self.attention_dim)
-        transposed_inputs_query, transposed_inputs_key, transposed_inputs_value = inputs_query.transpose(0, 1), inputs_key.transpose(0, 1), inputs_value.transpose(0, 1)
-
-        if neighbor_masks is not None:
-            # Tensor, shape (batch_size, source_seq_length)
-            neighbor_masks = torch.from_numpy(neighbor_masks).to(inputs_query.device) == 0
-
-        # Tensor, shape (batch_size, target_seq_length, self.attention_dim)
-        hidden_states = self.multi_head_attention(query=transposed_inputs_query, key=transposed_inputs_key,
-                                                  value=transposed_inputs_value, key_padding_mask=neighbor_masks)[0].transpose(0, 1)
-        # Tensor, shape (batch_size, target_seq_length, self.attention_dim)
-        outputs = self.norm_layers[0](inputs_query + self.dropout(hidden_states))
-        # Tensor, shape (batch_size, target_seq_length, self.attention_dim)
-        hidden_states = self.linear_layers[1](self.dropout(F.relu(self.linear_layers[0](outputs))))
-        # Tensor, shape (batch_size, target_seq_length, self.attention_dim)
-        outputs = self.norm_layers[1](outputs + self.dropout(hidden_states))
-
-        return outputs

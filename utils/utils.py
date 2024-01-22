@@ -5,6 +5,45 @@ import numpy as np
 
 from utils.DataLoader import Data
 
+'''NOTE: This file is external code from: https://github.com/yule-BUAA/DyGLib_TGB/tree/master/.
+Changes I made are marked with a comment starting with "CHANGED"
+MIT LICENSE:
+
+Copyright (c) 2023 Yu Le
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+Paper:
+@article{huang2023temporal,
+  title={Temporal Graph Benchmark for Machine Learning on Temporal Graphs},
+  author={Huang, Shenyang and Poursafaei, Farimah and Danovitch, Jacob and Fey, Matthias and Hu, Weihua and Rossi, Emanuele and Leskovec, Jure and Bronstein, Michael and Rabusseau, Guillaume and Rabbany, Reihaneh},
+  journal={arXiv preprint arXiv:2307.01026},
+  year={2023}
+}
+@article{yu2023empirical,
+  title={An Empirical Evaluation of Temporal Graph Benchmark},
+  author={Yu, Le},
+  journal={arXiv preprint arXiv:2307.12510},
+  year={2023}
+}
+'''
+
 
 def set_random_seed(seed: int = 0):
     """
@@ -19,53 +58,6 @@ def set_random_seed(seed: int = 0):
         torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
-
-def convert_to_gpu(*data, device: str):
-    """
-    convert data from cpu to gpu, accelerate the running speed
-    :param data: can be any type, including Tensor, Module, ...
-    :param device: str
-    """
-    res = []
-    for item in data:
-        item = item.to(device)
-        res.append(item)
-    if len(res) > 1:
-        res = tuple(res)
-    else:
-        res = res[0]
-    return res
-
-
-def get_parameter_sizes(model: nn.Module):
-    """
-    get parameter size of trainable parameters in model
-    :param model: nn.Module
-    :return:
-    """
-    return sum([p.numel() for p in model.parameters() if p.requires_grad])
-
-
-def create_optimizer(model: nn.Module, optimizer_name: str, learning_rate: float, weight_decay: float = 0.0):
-    """
-    create optimizer
-    :param model: nn.Module
-    :param optimizer_name: str, optimizer name
-    :param learning_rate: float, learning rate
-    :param weight_decay: float, weight decay
-    :return:
-    """
-    if optimizer_name == 'Adam':
-        optimizer = torch.optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    elif optimizer_name == 'SGD':
-        optimizer = torch.optim.SGD(params=model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    elif optimizer_name == 'RMSprop':
-        optimizer = torch.optim.RMSprop(params=model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    else:
-        raise ValueError(f"Wrong value for optimizer {optimizer_name}!")
-
-    return optimizer
 
 
 class NeighborSampler:

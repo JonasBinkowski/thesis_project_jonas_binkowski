@@ -1,8 +1,0 @@
-device: cuda
-dropout: 0.1
-learning_rate: 0.001
-num_heads: 4
-num_layers: 2
-num_neighbors: 20
-output_dim: 172
-time_feat_dim: 64
